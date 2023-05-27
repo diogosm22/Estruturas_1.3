@@ -1,25 +1,23 @@
-/* EM FALTA
+/* 
 
-Geolocalização / Associacao do cod do meio ao NIF / Ver saldo consoante o login realizado / 
-Listagem dos meios disponiveis(removendo os que ja estao alugados)
-Aperfeicoamente do ficheiro em termos de imports
-Guardians foram utilizados neste ficheiro principal e programa não está devidamente estruturado atravez de imports devido a problemas
-na compilação com o vscode ( a melhorar)
 
-Alguns dados já vão inseridos, consultar TXT´s
 
+Alguns dados já vão inseridos, consultar TXT´s "meios.txt" -> codigo, bateria, autonomia, tipo, localizacao, estado; (ordem apresentada no txt)
+												"DadosCliente.txt" -> username, password, NIF, saldo, estado, localizacao);(ordem apresentada no txt)
 
 Nota: Gestor apenas pode ser registado atravez do txt diretamente(lista nao ligada), de forma a apenas o admin registar gestores
 Gestor padrao: username:1
 			   password:1
 
-Programa apenas aceita inputs do utilizador de NUMEROS INTEIROS !!!
+NAVEGACAO NOS MENUS APENAS SAO ACEITES NUMEROS INTEIROS 
 
 
 */
 
-/*											DIOGO MACEDO A20392 EEC 1º ANO 												*/
+/*											DIOGO MACEDO A20392 EEC 1º ANO 		IPCA										*/
 
+
+// 
 
 #ifndef ficheiroClientes_c
 #define ficheiroClientes_c
@@ -28,23 +26,28 @@ Programa apenas aceita inputs do utilizador de NUMEROS INTEIROS !!!
 #include <string.h>
 #include <time.h>
 #include "ficheiroClientes.c"
-
-//#include "associarteste.c"
+//#include "novo.c"
+#define MAX 6
 
 
 char usernameL1[20], passwordL1[20]; //variaveis utilizadas para gravar dados do Log in do Cliente, e futuramente utilizadas para 
 									 //obter o saldo de cliente que efetuou o log in
 
-
+	int graph[MAX][MAX] = {
+	{0, 0, 0, 0, 900, 0},
+	{200, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 400, 0},
+	{0, 0, 600, 0, 0, 1200},
+	{900, 500, 400, 700, 0, 0},
+	{0, 0, 0, 1200, 0, 0}
+};
 
 /////////////////////////////////////////////////////////////// Estruturas ///////////////////////////////////////////////////////////7
 struct Gestor{
 	char username[20];
 	char password[20];
-	char nome[40];
     int NIF[9];
     float saldo;
-    char morada; 
 } Gestor;
 
 typedef struct registo{
@@ -57,12 +60,339 @@ typedef struct registo{
  	struct registo* seguinte;
 } Meio;
 
+
+
 Meio* inserirMeio(Meio* inicio, int cod, char tipo[], float bat, float aut, char localizacao[], int estado); // Inser��o de um novo registo
 void listarMeios(Meio* inicio); // listar na consola o conte�do da lista ligada
 int existeMeio(Meio* inicio, int codigo); // Determinar exist�ncia do 'codigo' na lista ligada 'inicio'
 Meio* removerMeio(Meio* inicio, int cod); // Remover um meio a partir do seu c�digo
 int guardarMeios(Meio* inicio);
 Meio* lerMeios();
+
+
+////////////////////////////////////////////////////////////////////Associacoes///////////////////////////////////////////////////////
+
+char* getHorasAtuais() //funcao utilizada para obter as horas e gravar os registos de aluguel
+{
+    time_t tempoAtual;
+    struct tm *infoTempo;
+    static char buffer[80];
+
+    time(&tempoAtual);
+    infoTempo = localtime(&tempoAtual);
+
+    strftime(buffer, sizeof(buffer), "%d/%m/%Y %H:%M:%S", infoTempo);
+    return buffer;
+}
+
+
+int associar_cliente_meio(int codigo, int NIF, Meio* meios, Cliente* clientes) {
+    char* horas = getHorasAtuais();
+    Meio* current_meio = meios;
+    while (current_meio != NULL) {
+        if (current_meio->codigo == codigo) {
+            break;
+        }
+        current_meio = current_meio->seguinte;
+    }
+
+    // Find the client with the given NIF.
+    Cliente* current_cliente = clientes;
+    while (current_cliente != NULL) {
+        if (current_cliente->NIF == NIF) {
+            break;
+        }
+        current_cliente = current_cliente->seguinte;
+    }
+
+    // Check if both meio and client exist.
+    if (current_meio == NULL || current_cliente == NULL) {
+        printf("Nao foi possivel encontrar Meio/Cliente.\n");
+        return;
+    }
+
+	if (current_meio->estado == 2)
+	{
+		printf("O meio encontra-se indisponível");
+		return;
+	}
+
+	if (current_cliente->estadoC == 2)
+	{
+		printf("Ja tem um MBE associado");
+	}
+
+    // Check if the meio is already associated with a client.
+
+
+    // Update the meio's estado value and print a message to the console.
+    current_meio->estado = 2;
+	current_cliente->estadoC =2;
+	//printDataHoraAtuais();
+    printf("%s Associacao entre Meio %d e Cliente %d realizada  .\n", horas, codigo, NIF);
+
+    // Open the file for writing in append mode.
+    FILE* association_file = fopen("associacoes.txt", "a");
+    if (association_file == NULL) {
+        printf("Erro ao abrir ficheiro.\n");
+        return;
+    }
+
+    // Write the association information to the file and close the file.
+    fprintf(association_file, "%s -> Meio com codigo %d associado ao Cliente com NIF %d.\n",horas, codigo, NIF);
+    fclose(association_file);
+}
+
+void pedir_associacao(Meio* meios, Cliente* clientes, Cliente*inicio, char username[]) 
+{
+    int codigo, NIF;
+    printf("Introduza o codigo do meio que pretende alugar: ");
+    scanf("%d", &codigo);
+
+		while (inicio != NULL) 
+		{
+			if (strcmp(inicio->username, username) == 0) 
+			{
+				if(inicio->saldo >= 1)
+				{
+					NIF = inicio->NIF;
+					int result = associar_cliente_meio(codigo, NIF, meios, clientes);
+					return;
+				}
+
+				else
+				{
+					printf("O seu saldo nao lhe permite alugar um MBE\n");
+				}
+			}
+			inicio = inicio->seguinte;
+		}
+		printf("Utilizador nao encontrado\n");
+	
+}
+
+void realizar_associacao_gestor(Meio* meios, Cliente* clientes, Cliente*inicio)
+{
+	int NIFC;
+	int CODC;
+	printf("Introduza o codigo do meio que pretende alugar: ");
+    scanf("%d", &CODC);
+	printf("Introduza o NIF do cliente: ");
+    scanf("%d", &NIFC);
+    while (inicio != NULL) 
+    {
+        if (inicio->NIF == NIFC) 
+        {
+
+    		int result = associar_cliente_meio(CODC, NIFC, meios, clientes);
+			return;
+
+        }
+        inicio = inicio->seguinte;
+    }
+    printf("Utilizador nao encontrado\n");
+}
+	
+void fazer_associacao_gestor()
+{
+	Meio* meios = NULL;
+    Cliente* clientes = NULL;
+	Cliente* clienteC = NULL;
+	meios=lerMeios();
+	clientes=lerCliente();
+	clienteC=lerCliente();
+	realizar_associacao_gestor(meios,clientes,clienteC);
+	guardarCliente(clientes),
+	guardarMeios(meios);
+}
+
+void acabar_associacao_gestor()
+{
+	Meio* meios = NULL;
+    Cliente* clientes = NULL;
+	Cliente* clienteC = NULL;
+	meios=lerMeios();
+	clientes=lerCliente();
+	clienteC=lerCliente();
+	remover_associacao_gestor(meios,clientes,clienteC);
+	guardarCliente(clientes),
+	guardarMeios(meios);
+}
+
+void acabar_associacao_cliente()
+{
+	Meio* meios = NULL;
+    Cliente* clientes = NULL;
+	Cliente* clienteC = NULL;
+	meios=lerMeios();
+	clientes=lerCliente();
+	clienteC=lerCliente();
+	remover_associacao_cliente(meios,clientes,clienteC,usernameL1);
+	guardarCliente(clientes),
+	guardarMeios(meios);
+
+}
+void realizar_associacao()
+{
+	Meio* meios = NULL;
+    Cliente* clientes = NULL;
+	Cliente* clienteC = NULL;
+	meios=lerMeios();
+	clientes=lerCliente();
+	clienteC=lerCliente();
+	pedir_associacao(meios,clientes,clienteC, usernameL1);
+	guardarCliente(clientes),
+	guardarMeios(meios);
+}
+
+
+int remover_associacao(int codigo, int NIF, Meio* meios, Cliente* clientes) {
+    Meio* current_meio = meios;
+    while (current_meio != NULL) {
+        if (current_meio->codigo == codigo) {
+            break;
+        }
+        current_meio = current_meio->seguinte;
+    }
+
+    // Find the client with the given NIF.
+    Cliente* current_cliente = clientes;
+    while (current_cliente != NULL) {
+        if (current_cliente->NIF == NIF) {
+            break;
+        }
+        current_cliente = current_cliente->seguinte;
+    }
+
+    // Check if both meio and client exist.
+    if (current_meio == NULL || current_cliente == NULL) {
+        printf("Nao foi possivel encontrar Meio/Cliente.\n");
+        return;
+    }
+
+	if (current_cliente->estadoC !=2)
+	{
+		printf("\nO cliente nao tem nenhum meio associado.");
+		return;
+	}
+
+	if (current_meio->estado !=2)
+	{
+		printf("\nO meio nao se encontra alugado");
+		return;
+	}
+
+	if (current_meio->estado == 2 && current_cliente->estadoC == 2)
+	{
+		    current_meio->estado = 1;
+			current_cliente->estadoC = 1;
+	}
+}
+
+void remover_associacao_cliente(Meio* meios, Cliente* clientes, Cliente*inicio, char username[])
+{
+	int NIFC;
+	int CODC;
+	printf("Confirme o codigo do meio que alugou: ");
+    scanf("%d", &CODC);
+	
+    while (inicio != NULL) 
+	{
+        if (strcmp(inicio->username, username) == 0)
+		{
+            NIFC = inicio->NIF;
+			break;
+		}
+        
+        inicio = inicio->seguinte;
+	}
+    
+
+    while (inicio != NULL) 
+    {
+        if (inicio->NIF == NIFC) 
+        {
+    		remover_associacao(CODC, NIFC, meios, clientes);
+			return;
+
+        }
+        inicio = inicio->seguinte;
+    }
+    printf("Utilizador nao encontrado\n");
+}
+
+
+void remover_associacao_gestor(Meio* meios, Cliente* clientes, Cliente*inicio)
+{
+	int NIFC;
+	int CODC;
+	printf("Introduza o codigo do meio que pretende terminar o aluguel: ");
+    scanf("%d", &CODC);
+	printf("Introduza o NIF do cliente: ");
+    scanf("%d", &NIFC);
+    while (inicio != NULL) 
+    {
+        if (inicio->NIF == NIFC) 
+        {
+
+    		remover_associacao(CODC, NIFC, meios, clientes);
+			return;
+
+        }
+        inicio = inicio->seguinte;
+    }
+    printf("Utilizador nao encontrado\n");
+}
+
+void meios_por_raio(int graph[MAX][MAX], Meio* inicio) {
+    int distances[MAX] = {0};
+    int visited[MAX] = {0};
+    int queue[MAX] = {0};
+    int front = 0, rear = 0;
+
+    int suaLocalizacao;
+    do {
+        printf("Introduza a localizacao pretendida (1-6): ");
+        scanf("%d", &suaLocalizacao);
+    } while (suaLocalizacao < 1 || suaLocalizacao > 6);
+
+    int raio;
+    printf("Introduza a distancia maxima que pretende percorrer (em metros): ");
+    scanf("%d", &raio);
+
+	 char tipoMBE[100];
+    printf("Qual o tipo de MBE pretende: ");
+    scanf("%s", tipoMBE);
+	printf("\n");
+
+    distances[suaLocalizacao - 1] = 0;
+    visited[suaLocalizacao - 1] = 1;
+    queue[rear++] = suaLocalizacao - 1;
+
+    //printf("Localizacoes com meios disponiveis a pelo menos %d metros da sua localizacao (%d):\n", raio, suaLocalizacao);
+
+    while (front < rear) {
+        int currentVertex = queue[front++];
+        for (int i = 0; i < MAX; i++) {
+            int distance = distances[currentVertex] + graph[currentVertex][i];
+            if (graph[currentVertex][i] != 0 && distance <= raio && !visited[i]) {
+                distances[i] = distance;
+                visited[i] = 1;
+                queue[rear++] = i;
+            }
+        }
+    }
+
+    // Comparação com a lista ligada
+    Meio* local = inicio;
+    while (local != NULL) {
+        int localizacao = atoi(local->localizacao); //localizacao é string
+        if (visited[localizacao - 1] && local->estado==1 && strcmp(local->tipo, tipoMBE) == 0) {
+            printf("Estado: %d ; Codigo: %d ; Tipo: %s ; Bateria: %.2f%% ; Autonomia: %.2f min; Localizacao: %s ;\n", local->estado, local->codigo, local->tipo, local->bateria, local->autonomia, local->localizacao);
+        }
+        local = local->seguinte;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////LISTAGENS/////////////////////////////////////////////////////
 
@@ -92,6 +422,153 @@ void apresentarMeiosLocalizacao() // funcao void utilizada para facilitar a cham
 	Meio*meios=NULL;
 	meios=lerMeios();
 	listarMeiosLocalizacao(meios);
+}
+
+void pedir_alteracao_dados_meios()//funcao void utilizada para facilitar a chamada no menu
+{
+	Meio*meios=NULL;
+	meios=lerMeios();
+	alterar_dados_meios(meios);
+	guardarMeios(meios);
+}
+
+void pedir_atualizacao_localizacao()
+{
+	Cliente* clienteC =NULL;
+	clienteC=lerCliente();
+	atualizar_localizacao(clienteC);
+	guardarCliente(clienteC);
+}
+
+void apresentarClientesMeiosLocalizacao()
+{
+	Cliente* clienteC = NULL;
+	clienteC = lerCliente();
+	Meio*meios = NULL;
+	meios = lerMeios();
+	listarClientesMeiosLocalizacao(meios, clienteC);
+}
+
+void atualizar_localizacao(Cliente* inicio) //Apresenta o Saldo (deteta o username automaticamente)
+{
+	Cliente *cliente_atualizar_localizacao = inicio;
+	char atualizar_localizacaoC[20];
+	int atualizar_localizacao_comparar;
+	char username[20];
+	while (cliente_atualizar_localizacao != NULL) 
+	{
+		if (strcmp(cliente_atualizar_localizacao->username, usernameL1) == 0) 
+		{
+			do 
+			{
+				printf("Qual a sua localizacao atual (1-6): ");
+				scanf("%s", atualizar_localizacaoC);
+				atualizar_localizacao_comparar = atoi(atualizar_localizacaoC);
+			} while (atualizar_localizacao_comparar < 1 || atualizar_localizacao_comparar > 6);
+	
+			strcpy(cliente_atualizar_localizacao->localizacaoC, atualizar_localizacaoC);
+			return;
+		}
+		cliente_atualizar_localizacao = cliente_atualizar_localizacao->seguinte;
+	}
+	printf("Utilizador nao encontrado\n");
+}
+
+
+void alterar_dados_meios(Meio *inicio) //Funcao utilizada para alterar dados de um meio a partir do seu codigo
+{
+    int codigo;
+    printf("Qual o codigo do meio que pretende alterar?	n\n");
+	printf("Opcao:");
+    scanf("%d", &codigo);
+	int novo_estado;
+	float nova_bateria, nova_autonomia;
+	char novo_tipo, nova_localizacao;
+    Meio *meio_atual = inicio;
+    while (meio_atual != NULL) {
+        if (meio_atual->codigo == codigo) {
+            int opcao;
+            printf("Qual das opcoes pretende alterar?\n");
+            printf("1 - Bateria\n");
+            printf("2 - Autonomia\n");
+            printf("3 - Tipo\n");
+            printf("4 - Localizacao\n");
+			printf("5 - Estado\n\n");
+			printf("Opcao: ");
+            scanf("%d", &opcao);
+            switch (opcao) {
+                case 1:
+                    //float nova_bateria;
+                    printf("Introduza a nova bateria: ");
+                    scanf("%f", &nova_bateria);
+                    meio_atual->bateria = nova_bateria;
+                    break;
+                case 2:
+                    //float nova_autonomia;
+                    printf("Introduza a nova autonomia: ");
+                    scanf("%f", &nova_autonomia);
+                    meio_atual->autonomia = nova_autonomia;
+                    break;
+                case 3:
+                    //char novo_tipo[50];
+                    printf("Introduza o novo tipo: ");
+                    scanf("%s", novo_tipo);
+                    strcpy(meio_atual->tipo, novo_tipo);
+                    break;
+                case 4:
+                    //char nova_localizacao[50];
+                    printf("Introduza a nova localizacao: ");
+                    scanf("%s", nova_localizacao);
+                    strcpy(meio_atual->localizacao, nova_localizacao);
+                    break;
+				case 5:
+					printf("Introduza o novo estado: ");
+					scanf("%d", &novo_estado);
+					meio_atual->estado = novo_estado;
+					break;
+                default:
+                    printf("\nOpcao invalida.\n");
+            }
+            return;
+        }
+        meio_atual = meio_atual->seguinte;
+    }
+    printf("\nO meio com o codigo %d nao foi encontrado.\n", codigo);
+}
+
+void listarClientesMeiosLocalizacao(Meio* meios, Cliente* inicio) //listagem de meios por localizacao especifica
+{
+    char localizacao[50];
+    printf("Insira a localizacao desejada: ");
+    scanf("%s", localizacao);
+    Meio* local1 = meios;
+	Cliente* local2 = inicio;
+    int count = 0;
+	int count2 = 0;
+    while (local1 != NULL) {
+        if (strcmp(local1->localizacao, localizacao) == 0) {
+            printf("\nEstado: %d ; Codigo: %d ; Tipo: %s ; Bateria: %.2f ; Autonomia: %.2f ; Localizacao: %s ;",local1->estado, local1->codigo, local1->tipo, local1->bateria, local1->autonomia, local1->localizacao);
+            count++;
+        }
+        local1 = local1->seguinte;
+    }
+    if (count == 0) {
+        printf("Nenhum registo encontrado para a localizacao inserida.\n");
+    }
+	printf("\n");
+	while(local2 != NULL)
+	{
+		if(strcmp(local2->localizacaoC, localizacao)== 0){
+			printf("\nEstado: %d ; Username: %s ; NIF: %d ; Localizacao: %s ;", local2->estadoC, local2->username, local2->NIF, local2->localizacaoC);
+			count2++;
+		}
+		local2 = local2->seguinte;
+	}
+	if (count2 == 0)
+	{
+		printf("Nenhum utilizador encontrado para a localizacao inserida.\n");
+	}
+	printf("\n");
 }
 
 void listarMeiosLocalizacao(Meio* inicio) //listagem de meios por localizacao especifica
@@ -182,6 +659,8 @@ void listarMeios(Meio * inicio) //listagem de meios por ordem de alteracao
 void listar_Meios_Disponiveis(Meio * inicio) // listagem de meios sem associacao
 {
 	Meio* local = inicio;
+	
+	
 	while (local != NULL)
  	{
 		if(local->estado == 1)
@@ -207,12 +686,27 @@ void listar_Meios_Ocupados(Meio * inicio) // listagem de meios associados
 
 //////////////////////////////////////////////////////////////// Saldo Cliente //////////////////////////////////////////////////////////
 
-void adicionarSaldo(Cliente* inicio, char username[]) //Adicionar saldo cliente (deteta o username automaticamente)
+void apresentarSaldo()
+{
+	Cliente* clienteC = NULL;
+	clienteC = lerCliente();
+	printSaldo(clienteC, usernameL1);
+}
+
+void adicionarSaldo()
+{
+	Cliente* clienteC = NULL;
+	clienteC = lerCliente();
+	adddSaldo(clienteC, usernameL1);
+	clienteC = guardarCliente(clienteC);
+}
+
+void adddSaldo(Cliente* inicio, char username[]) //Adicionar saldo cliente (deteta o username automaticamente)
 {
     float valor;
     printf("Valor a adicionar: ");
     scanf("%f", &valor);
-
+    //clienteC = lerCliente();
     while (inicio != NULL) 
     {
         if (strcmp(inicio->username, username) == 0) 
@@ -346,11 +840,12 @@ int opregistarclienteC()// Menu de escolhas ( Login/Registar ) para clientes
 int menu_do_cliente() // Registo/Login de Clientes
 {
 	Cliente* clienteC = NULL; // Lista ligada vazia 
-	int op, NIF, NIFexiste, usernameExiste, resultado1;
+	int op, NIF, NIFexiste, usernameExiste, resultado1, localizacao1;
 	int loginValid1 = 0;
-	char username[20], password[20], line[40];
+	char username[20], password[20], line[40], localizacaoC[20];
 	char *tokenC1;
 	float saldo;
+	int estadoC = 1;
 	FILE *txtCliente;
 	do
 	{
@@ -361,14 +856,17 @@ int menu_do_cliente() // Registo/Login de Clientes
 				txtCliente = fopen("DadosCliente.txt", "r");
 				printf("Username: ");
 				scanf("%s", usernameL1);
+				scanf("%*c");
 				printf("Password: ");
 				scanf("%s", passwordL1);
+				scanf("%*c");
 				while(fgets(line, sizeof(line), txtCliente))
 				{
 					tokenC1 = strtok(line, ";"); // vai linha a linha ao ficheiro txt, divide cada frase separada por ; e compara
 					if(strcmp(tokenC1, usernameL1) == 0)
 					{
-						if(strcmp(tokenC1,passwordL1)==0)
+						tokenC1 = strtok(NULL, ";");
+						if(strcmp(tokenC1, passwordL1)==0)
 						{
 							fclose(txtCliente);
 							resultado1 = 1;
@@ -379,7 +877,7 @@ int menu_do_cliente() // Registo/Login de Clientes
 				if(resultado1 == 1)
 				{
 					printf("\n\nLogin efetuado com sucesso!\n");
-					fclose(txtCliente);
+					pedir_atualizacao_localizacao(clienteC);
 					Menu_Opcoes_Cliente();
 				}
 				else if (loginValid1 !=1 )
@@ -402,12 +900,12 @@ int menu_do_cliente() // Registo/Login de Clientes
 
 				else
 				{
-					scanf("%*c"); 
 					printf("Password: ");
 					scanf("%s", password);
-					scanf("%*c");
+					scanf("%*c"); 
 					printf("NIF: ");
 					scanf("%d",&NIF);
+					scanf("%*c");
 					NIFexiste = check_NIF_C(NIF);
 					if(NIFexiste == 1)
 					{
@@ -418,8 +916,14 @@ int menu_do_cliente() // Registo/Login de Clientes
 					{
 						printf("Saldo: ");
 						scanf("%f",&saldo);
+						do 
+						{ 
+							printf("Introduza a localizacao do cliente (1-6): ");
+							scanf("%s", localizacaoC);
+							localizacao1 = atoi(localizacaoC);
+						} while (localizacao1 < 1 || localizacao1 > 6);
 						clienteC = lerCliente();			
-						clienteC = inserirCliente(clienteC,username,password,NIF,saldo);
+						clienteC = inserirCliente(clienteC,username,password,NIF,saldo,estadoC,localizacaoC);
 						clienteC = guardarCliente(clienteC);
 						printf("\n\nCliente Registado!\n"); //onde regista o cliente
 						break;
@@ -478,7 +982,7 @@ Meio* lerMeios() // funcao usada para ler meios ( manter meios atualizados)
     return aux;
 }
 
-Meio* inserirMeio(Meio * inicio, int cod, char tipo[], float bat, float aut,char localizacao[],int estado)// funcao usada para inserir novos meios
+Meio* inserirMeio(Meio * inicio, int cod, char tipo[], float bat, float aut,char localizacao[],int estado)// funcao usada para 1 novos meios
 {if (!existeMeio(inicio, cod))
  {Meio * novo = malloc(sizeof(struct registo));
   if (novo != NULL)
@@ -582,6 +1086,35 @@ void menu_do_gestor() // Menu Login do gestor
 	}
 }
 
+void gerir_associacoesG()
+{
+	int optionMga;
+	int NIFC;
+	int MBEC;
+	
+	printf("\nGerir Associacoes\n");
+	printf("1. Realizar associacao MBE -> Cliente\n");
+	printf("2. Remover Associacao MBE -> Cliente\n");
+	printf("9. Voltar\n\n");
+	printf("Opcao: ");
+	scanf("%d", &optionMga);
+
+	switch (optionMga)
+	{
+	case 1:
+		fazer_associacao_gestor();
+		return gerir_associacoesG();
+
+	case 2:
+		acabar_associacao_gestor();
+		return gerir_associacoesG();
+
+	case 9:
+		return Menu_Opcoes_Gestor();
+	}
+
+
+}
 void Menu_Opcoes_Gestor() // Menu das opcoes do gestor
 {
 	int optionMG;
@@ -590,8 +1123,8 @@ void Menu_Opcoes_Gestor() // Menu das opcoes do gestor
 	printf("2. Consultar Dados Clientes\n");
 	printf("3. Gerir dados Clientes\n");
 	printf("4. Gerir Associacoes\n");
+	printf("5. Ver todos os Clientes/Meios em uma localizacao\n");
 	printf("0. Sair\n");
-	printf("9. Voltar\n\n");
 	printf("Opcao: ");
 	scanf("%d", &optionMG);
 	printf("\n\n");
@@ -610,16 +1143,15 @@ void Menu_Opcoes_Gestor() // Menu das opcoes do gestor
 			break;
 
 		case 4:
-			//realizar_associacao();
-			printf("Indisponivel");
+			gerir_associacoesG();
 			break;	
 			
+		case 5:
+			apresentarClientesMeiosLocalizacao();
+			return Menu_Opcoes_Gestor();
 		case 0:
 			exit(1);
 			break;
-
-		case 9:
-			return Menu_Opcoes_Gestor();
 
 		default:
 			printf("\n\nOpcao invalida\n\n");
@@ -634,12 +1166,13 @@ int Menu_Gerenciar_Meios1() //Menu das opcoes do gestor em relacao a meios de mo
 	int op;
 	printf("\n\nMenu Gestor\n\n");
 	printf("1. Inserir meio\n");
-	printf("2. Listar meios por ordem de atualizacao\n");
-	printf("3. Visualizar meios disponiveis ");
-	printf("4. Visualizar meios ocupados ");
-	printf("5. Visualizar meios por ordem decrescente de autonomia");
-	printf("6. Pesquisar meio por localizacao\n");
-	printf("7. Remover meio\n");
+	printf("2. Alterar dados de um Meio\n");
+	printf("3. Listar meios por ordem de atualizacao\n");
+	printf("4. Visualizar meios disponiveis\n");
+	printf("5. Visualizar meios ocupados\n");
+	printf("6. Visualizar meios por ordem decrescente de autonomia\n");
+	printf("7. Pesquisar meio por localizacao\n");
+	printf("8. Remover meio\n");
 	printf("0. Sair\n");
 	printf("9. Voltar\n\n");
 	printf("Opcao:");
@@ -661,45 +1194,61 @@ int Menu_Gerenciar_Meios2() //Gerir Meios de mobilidade
 		switch(op)
 		{
 			case 1: 
-				estado=1;
+				estado = 1;
 				meios = lerMeios();
 				printf("Codigo?\n");
-				scanf("%d",&cod);
+				scanf("%d", &cod);
 				printf("Tipo\n");
-				scanf("%s",tipo);
-				scanf("%*c"); 
-				printf("Nivel da bateria?\n");
-				scanf("%f",&bat);
-				printf("Autonomia\n");
-				scanf("%f",&aut);
-				printf("Localizacao:\n");
-				scanf("%s",localizacao);
+				scanf("%s", tipo);
 				scanf("%*c");
-				meios = inserirMeio(meios,cod,tipo,bat,aut,localizacao,estado);
+				printf("Nivel da bateria?\n");
+				scanf("%f", &bat);
+				printf("Autonomia\n");
+				scanf("%f", &aut);
+
+				int localizacao_valida = 0;
+				do {
+					printf("Localizacao(1-6):\n");
+					scanf("%s", localizacao);
+					scanf("%*c");
+					
+					// Verificar se a localização está entre 1 e 6
+					if (atoi(localizacao) >= 1 && atoi(localizacao) <= 6) {
+						localizacao_valida = 1;
+					} else {
+						printf("Localizacao invalida. Tente novamente.\n");
+					}
+				} while (!localizacao_valida);
+
+				meios = inserirMeio(meios, cod, tipo, bat, aut, localizacao, estado);
 				guardarMeios(meios);
 				break;
-			case 2: 
+
+			case 2:
+				pedir_alteracao_dados_meios();
+				break;
+			case 3: 
 				meios = lerMeios();
 				listarMeios(meios);
 				break; //listagem por ordem de criação para o gestor
 
-			case 3:
+			case 4:
 				apresentarMeiosDisponivel();
 				break;
 
-			case 4:
+			case 5:
 				apresentarMeiosOcupados();
 				break;
 
-			case 5:
+			case 6:
 				apresentarMeioDecrescente();
 				break;
 
-			case 6:
-				apresentarMeiosLocalizacao(meios);
+			case 7:
+				apresentarMeiosLocalizacao();
 				break;
 
-			case 7: 
+			case 8: 
 				meios = lerMeios();
 				printf("Codigo do meio de mobilidade a remover?\n");
 				scanf("%d",&cod);
@@ -718,19 +1267,21 @@ int Menu_Gerenciar_Meios2() //Gerir Meios de mobilidade
 
 void Menu_Opcoes_Cliente() // Menu das opcoes do cliente
 {
-	Cliente* clienteC = NULL;
-    Meio* meios = NULL;
+    //Meio* meios = NULL;
+	Meio* inicio=lerMeios();
+    //meios = lerMeios();
 	int NIF, codigo;
 	int optionMC;
 	printf("\nBem vindo!\n");	
-	printf("1. Visualizar meios de mobilidade disponiveis\n");
-	printf("2. Pesquisar meio por localizacao\n");
-	printf("3. Alugar\n");
-	printf("4. Visualizar meios disponiveis\n");
-	printf("5. Visualizar meios ocupados\n");
+	printf("1. Alugar\n");
+	printf("2. Terminar Aluguel\n");
+	printf("3. Pesquisar MBE por localizacao\n");
+	printf("4. Visualizar todos os MBE disponiveis\n");
+	printf("5. Visualizar todos os MBE ocupados\n");
 	printf("6. Consultar Saldo\n");
 	printf("7. Adicionar Saldo\n");
 	printf("8. Visualizar todos os meios de mobilidade\n");
+	printf("9. Visualizar todos MBE disponiveis em um determinado raio da sua localizacao\n");
 	printf("0. Sair\n\n");
 	printf("Opcao: ");
 	scanf("%d", &optionMC);
@@ -739,45 +1290,45 @@ void Menu_Opcoes_Cliente() // Menu das opcoes do cliente
 	switch (optionMC)
 	{
 		case 1:
-			printf("Em atualizacao");
+			realizar_associacao();
 			return Menu_Opcoes_Cliente();
 			
 		case 2:
-			apresentarMeiosLocalizacao(meios);
+			acabar_associacao_cliente();
 			return Menu_Opcoes_Cliente();
 		
 		case 3:
-   			printf("Indisponivel");
-			//realizar_associacao();
+			apresentarMeiosLocalizacao();
 			return Menu_Opcoes_Cliente();
 
 		case 4:		
-			apresentarMeiosDisponivel(meios);
+			apresentarMeiosDisponivel();
 			return Menu_Opcoes_Cliente();
 			
 		case 5:	//return Menu_Opcoes_Cliente();
-			apresentarMeiosOcupados(meios);
+			apresentarMeiosOcupados();
 			return Menu_Opcoes_Cliente();
 
 		case 6:
-			clienteC = lerCliente();
-			printSaldo(clienteC, usernameL1);
+			apresentarSaldo();
 			return Menu_Opcoes_Cliente();
 			
 		case 7:
-			clienteC = lerCliente();
-			adicionarSaldo(clienteC, usernameL1);
-			clienteC = guardarCliente(clienteC);
+			adicionarSaldo();
 			return Menu_Opcoes_Cliente();
 			
 		case 8:
-			apresentarMeioDecrescente(meios);
+			apresentarMeioDecrescente();
 			return Menu_Opcoes_Cliente();
 			
-		case 0:
+		case 9:
+   			meios_por_raio(graph, inicio);
+			return Menu_Opcoes_Cliente();
+			break;
+		case 0: 
 			exit(1);
 			break;
-	
+
 		default:
 			printf("\n\nOpcao invalida\n\n");
 			return Menu_Opcoes_Cliente();
@@ -788,5 +1339,7 @@ int main()
 {
     mainMenu();
 }
+
+
 
 #endif //Guardian

@@ -16,10 +16,12 @@ typedef struct registoC
   int NIF;
   float saldo;
   struct registoC* seguinte;
+  char localizacaoC[20];
+  int estadoC;
 } Cliente;
 
 
-Cliente* inserirCliente(Cliente* inicio, char username[], char password[], int NIF, float saldo); // Inser��o de um novo registo
+Cliente* inserirCliente(Cliente* inicio, char username[], char password[], int NIF, float saldo, int estadoC, char localizacaoC[]); // Inser��o de um novo registo
 void listarCliente(Cliente* inicio); // listar na consola o conte�do da lista ligada
 int existeCliente(Cliente* inicio, int NIF); // Determinar exist�ncia do 'codigo' na lista ligada 'inicio'
 Cliente* removerCliente(Cliente* inicio, int NIF); // Remover um meio a partir do seu c�digo
@@ -74,8 +76,9 @@ void removerSaldoG(Cliente* inicio, int NIF_mudar_saldo1, float alterar_saldo1) 
 
 ////////////////////////////////////////////////// Principais //////////////////////////////////////////////////
 
-Cliente* inserirCliente(Cliente* inicio, char username[], char password[], int NIF, float saldo) // inserir novo cliente
+Cliente* inserirCliente(Cliente* inicio, char username[], char password[], int NIF, float saldo, int estadoC, char localizacaoC[]) // inserir novo cliente
 {
+  
   if (!existeCliente(inicio, NIF))
   {
   Cliente * novo = malloc(sizeof(struct registoC));
@@ -83,8 +86,10 @@ Cliente* inserirCliente(Cliente* inicio, char username[], char password[], int N
   {
     strcpy(novo->username,username);
     strcpy(novo->password,password);
+    strcpy(novo->localizacaoC,localizacaoC);
     novo->NIF = NIF;
     novo->saldo = saldo;
+    novo->estadoC = estadoC;
     novo->seguinte = inicio;
     return(novo);
   }
@@ -141,7 +146,7 @@ int guardarCliente(Cliente* inicio) // Guardar cliente em txt
     Cliente* aux= inicio;
     while (aux != NULL)
     {
-      fprintf(fp,"%s;%s;%d;%f;\n", aux->username, aux->password, aux->NIF, aux->saldo);
+      fprintf(fp, "%s;%s;%d;%.2f;%d;%s;\n", aux->username, aux->password, aux->NIF, aux->saldo, aux->estadoC, aux->localizacaoC);
       aux = aux->seguinte;
     }
     fclose(fp);
@@ -154,7 +159,7 @@ void listarCliente(Cliente * inicio) // Listar os clientes para o utilziador
 {
   while (inicio != NULL)
   {
-    printf("Username: %s ; Password: %s ; NIF: %d ; Saldo: %f\n",inicio->username,inicio->password, inicio->NIF, inicio->saldo);
+    printf("Estado : %d ; Username: %s ; NIF: %d ; Saldo: %.2f ; Localizacao: %s ;\n", inicio->estadoC, inicio->username, inicio->NIF, inicio->saldo, inicio->localizacaoC);
     inicio = inicio->seguinte;
   }
 }
@@ -165,20 +170,21 @@ Cliente* lerCliente() //realizar a leitura de clientes ( de forma de manter a li
   FILE* fp;
   char user[20];
   char pass[20];
+  char localizacaoC[20];
   int NIF;
   float saldo;
+  int estadoC;
   Cliente* aux=NULL;
   fp = fopen("DadosCliente.txt","r");
   if (fp!=NULL)
   {
-    while (!feof(fp))
-    { 
-      fscanf(fp," %[^;];%[^;];%d;%f;\n", user, pass, &NIF, &saldo);
-      aux = inserirCliente(aux, user, pass, NIF, saldo);
-    }
+      while (fscanf(fp, "%[^;];%[^;];%d;%f;%d;%[^;];\n", user, pass, &NIF, &saldo, &estadoC, localizacaoC) ==6)
+      { 
+        aux = inserirCliente(aux, user, pass, NIF, saldo, estadoC, localizacaoC);
+      }
     fclose(fp);
   }
-  return(aux);
+  return aux;
 }
 
 int opregistarClienteG() // Menu para facilitar o gestor, na modificacao de dados dos clientes
@@ -201,12 +207,14 @@ int opregistarClienteG() // Menu para facilitar o gestor, na modificacao de dado
 int Menu_Modificar_ClientesG() // Menu orientativo
 {
   Cliente* clienteC = NULL; 
-  clienteC = lerCliente();// Lista ligada vazia 
+  clienteC = lerCliente(); // Lista ligada vazia 
   int op1;
   char username[20];
   char password[20];
-  int NIF;
+  char localizacaoC[20];
+  int NIF, localizacao1;
   float saldo;
+  int estadoC = 1;
   do
   {
     op1 = opregistarClienteG();
@@ -223,7 +231,13 @@ int Menu_Modificar_ClientesG() // Menu orientativo
         scanf("%d",&NIF);
         printf("saldo:\n");
         scanf("%f",&saldo);
-        clienteC = inserirCliente(clienteC,username,password,NIF,saldo);
+        
+        do { 
+            printf("Introduza a localizacao do cliente (1-6): ");
+            scanf("%s", localizacaoC);
+            localizacao1 = atoi(localizacaoC);
+        } while (localizacao1 < 1 || localizacao1 > 6);
+        clienteC = inserirCliente(clienteC, username, password, NIF, saldo, estadoC, localizacaoC);
         guardarCliente(clienteC);
         printf("\nCliente inserido com sucesso!\n\n");
         Menu_Opcoes_Gestor();
@@ -247,7 +261,6 @@ int Menu_Modificar_ClientesG() // Menu orientativo
         clienteC = guardarCliente(clienteC);
         printf("\nSaldo adicionado com sucesso!\n\n");
         Menu_Opcoes_Gestor();
-        //break;
       case 5:
         printf("NIF do Cliente: ");
         scanf("%d", &NIF_mudar_saldo1);
@@ -255,9 +268,7 @@ int Menu_Modificar_ClientesG() // Menu orientativo
         scanf("%f", &alterar_saldo1);
         removerSaldoG(clienteC, NIF_mudar_saldo1, alterar_saldo1);
         clienteC = guardarCliente(clienteC);
-        printf("\nSaldo removido com sucesso!\n\n");
         Menu_Opcoes_Gestor();
-        //break;
       case 0:
         exit(1);
         break;
@@ -265,7 +276,8 @@ int Menu_Modificar_ClientesG() // Menu orientativo
         Menu_Opcoes_Gestor();
     }
   } while (op1!=0);
-  return(0);
+  return 0;
 }
+
 
 #endif

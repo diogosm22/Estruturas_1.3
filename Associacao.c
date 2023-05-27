@@ -1,8 +1,12 @@
 /*
+#ifndef Associacao_c
+#define Associacao_c
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+//#include "ficheiroClientes.c"
 #include "executavel.c"
 
 int associar_cliente_meio(int codigo, int NIF, Meio* meios, Cliente* clientes) {
@@ -109,4 +113,8 @@ int remover_associacao(int codigo, int NIF, Meio* meios, Cliente* clientes) {
     }
 
     return 0;
-}*/
+}
+
+#endif
+
+*/
